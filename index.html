@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<!-- Created with https://packager.turbowarp.org/ -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- We only include this to explicitly loosen the CSP of various packager environments. It does not provide any security. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:">
+  <title>PrayHive</title>
+  <style>
+    body {
+      color: #ffffff;
+      font-family: sans-serif;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    :root, body.is-fullscreen {
+      background-color: #000000;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    h1 {
+      font-weight: normal;
+    }
+    a {
+      color: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    #app, #loading, #error, #launch {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #000000;
+    }
+    #launch {
+      background-color: rgba(0, 0, 0, 0.7);
+      cursor: pointer;
+    }
+    .green-flag {
+      width: 80px;
+      height: 80px;
+      padding: 16px;
+      border-radius: 100%;
+      background: rgba(255, 255, 255, 0.75);
+      border: 3px solid hsla(0, 100%, 100%, 1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-sizing: border-box;
+    }
+    #loading {
+      
+    }
+    .progress-bar-outer {
+      border: 1px solid currentColor;
+      height: 10px;
+      width: 200px;
+      max-width: 200px;
+    }
+    .progress-bar-inner {
+      height: 100%;
+      width: 0;
+      background-color: currentColor;
+    }
+    .loading-text, noscript {
+      font-weight: normal;
+      font-size: 36px;
+      margin: 0 0 16px;
+    }
+    .loading-image {
+      margin: 0 0 16px;
+    }
+    #error-message, #error-stack {
+      font-family: monospace;
+      max-width: 600px;
+      white-space: pre-wrap;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    #error-stack {
+      text-align: left;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .control-button {
+      width: 2rem;
+      height: 2rem;
+      padding: 0.375rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+      border: 0;
+      border-radius: 4px;
+    }
+    .control-button-highlight:hover {
+      background: #ff4c4c26;
+    }
+    .control-button-highlight.active {
+      background: #ff4c4c59;
+    }
+    .fullscreen-button {
+      background: white;
+    }
+    .standalone-fullscreen-button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 0 0 0 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .sc-canvas {
+      cursor: auto;
+    }
+    .sc-monitor-root[data-opcode^="data_"] .sc-monitor-value-color {
+      background-color: #ff8c1a;
+    }
+    .sc-monitor-row-value-outer {
+      background-color: #fc662c;
+    }
+    .sc-monitor-row-value-editing .sc-monitor-row-value-outer {
+      background-color: #e25b27;
+    }
+    
+  </style>
+  <meta name="theme-color" content="#000000">
+  
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="launch" class="screen" hidden title="Click to start">
+    <div class="green-flag">
+      <svg viewBox="0 0 16.63 17.5" width="42" height="44">
+        <defs><style>.cls-1,.cls-2{fill:#4cbf56;stroke:#45993d;stroke-linecap:round;stroke-linejoin:round;}.cls-2{stroke-width:1.5px;}</style></defs>
+        <path class="cls-1" d="M.75,2A6.44,6.44,0,0,1,8.44,2h0a6.44,6.44,0,0,0,7.69,0V12.4a6.44,6.44,0,0,1-7.69,0h0a6.44,6.44,0,0,0-7.69,0"/>
+        <line class="cls-2" x1="0.75" y1="16.75" x2="0.75" y2="0.75"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="loading" class="screen">
+    <noscript>Enable JavaScript</noscript>
+    
+    
+    <div class="progress-bar-outer"><div class="progress-bar-inner" id="loading-inner"></div></div>
+  </div>
+
+  <div id="error" class="screen" hidden>
+    <h1>Error</h1>
+    <details>
+      <summary id="error-message"></summary>
+      <p id="error-stack"></p>
+    </details>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const appElement = document.getElementById('app');
+    const launchScreen = document.getElementById('launch');
+    const loadingScreen = document.getElementById('loading');
+    const loadingInner = document.getElementById('loading-inner');
+    const errorScreen = document.getElementById('error');
+    const errorScreenMessage = document.getElementById('error-message');
+    const errorScreenStack = document.getElementById('error-stack');
+
+    const handleError = (error) => {
+      console.error(error);
+      if (!errorScreen.hidden) return;
+      errorScreen.hidden = false;
+      errorScreenMessage.textContent = '' + error;
+      let debug = error && error.stack || 'no stack';
+      debug += '\nUser agent: ' + navigator.userAgent;
+      errorScreenStack.textContent = debug;
+    };
+    const setProgress = (progress) => {
+      if (loadingInner) loadingInner.style.width = progress * 100 + '%';
+    };
+    const interpolate = (a, b, t) => a + t * (b - a);
+
+    try {
+      setProgress(0.1);
+
+      const scaffolding = new Scaffolding.Scaffolding();
+      scaffolding.width = 480;
+      scaffolding.height = 793;
+      scaffolding.resizeMode = "preserve-ratio";
+      scaffolding.editableLists = false;
+      scaffolding.usePackagedRuntime = true;
+      scaffolding.setup();
+      scaffolding.appendTo(appElement);
+
+      const vm = scaffolding.vm;
+      window.scaffolding = scaffolding;
+      window.vm = scaffolding.vm;
+      window.Scratch = {
+        vm,
+        renderer: vm.renderer,
+        audioEngine: vm.runtime.audioEngine,
+        bitmapAdapter: vm.runtime.v2BitmapAdapter,
+        videoProvider: vm.runtime.ioDevices.video.provider
+      };
+
+      scaffolding.setUsername("player####".replace(/#/g, () => Math.floor(Math.random() * 10)));
+      scaffolding.setAccentColor("#ff4c4c");
+
+      try {
+        scaffolding.addCloudProvider(new Scaffolding.Cloud.WebSocketProvider(["wss://clouddata.turbowarp.org","wss://clouddata.turbowarp.xyz"], "p4-@Prayer app.sb3"));
+      } catch (error) {
+        console.error(error);
+      }
+
+      const pauseButton = document.createElement('img');
+      pauseButton.className = 'control-button control-button-highlight pause-button';
+      pauseButton.draggable = false;
+      let isPaused = false;
+      pauseButton.addEventListener('click', () => {
+        vm.setPaused(!isPaused);
+      });
+      const updatePause = () => {
+        if (isPaused) {
+          pauseButton.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="16" height="16" viewBox="0 0 4.2333332 4.2333335" xmlns="http://www.w3.org/2000/svg"><path d="m3.95163484 2.02835365-1.66643921.9621191-1.66643913.96211911V.10411543l1.66643922.9621191z" fill="#ffae00"/></svg>');
+        } else {
+          pauseButton.src = 'data:image/svg+xml,' + encodeURIComponent('<svg width="16" height="16" viewBox="0 0 4.2333332 4.2333335" xmlns="http://www.w3.org/2000/svg"><g fill="#ffae00"><path d="M.389.19239126h1.2631972v3.8485508H.389zM2.5810001.19239126h1.2631972v3.8485508H2.5810001z"/></g></svg>');
+        }
+      };
+      vm.runtime.on('RUNTIME_PAUSED', () => {
+        isPaused = true;
+        updatePause();
+      });
+      vm.runtime.on('RUNTIME_UNPAUSED', () => {
+        isPaused = false;
+        updatePause();
+      });
+      updatePause();
+      scaffolding.addControlButton({
+        element: pauseButton,
+        where: 'top-left'
+      });
+
+      vm.setTurboMode(false);
+      if (vm.setInterpolation) vm.setInterpolation(false);
+      if (vm.setFramerate) vm.setFramerate(30);
+      if (vm.renderer.setUseHighQualityRender) vm.renderer.setUseHighQualityRender(false);
+      if (vm.setRuntimeOptions) vm.setRuntimeOptions({
+        fencing: true,
+        miscLimits: true,
+        maxClones: 300,
+      });
+      if (vm.setCompilerOptions) vm.setCompilerOptions({
+        enabled: true,
+        warpTimer: false
+      });
+      if (vm.renderer.setMaxTextureDimension) vm.renderer.setMaxTextureDimension(2048);
+
+      // enforcePrivacy threat model only makes sense in the editor
+      if (vm.runtime.setEnforcePrivacy) vm.runtime.setEnforcePrivacy(false);
+
+      if (typeof ScaffoldingAddons !== 'undefined') {
+        ScaffoldingAddons.run(scaffolding, {"gamepad":false,"pointerlock":false,"specialCloudBehaviors":false,"unsafeCloudBehaviors":false,"pause":true});
+      }
+
+      scaffolding.setExtensionSecurityManager({
+        getSandboxMode: () => 'unsandboxed',
+        canLoadExtensionFromProject: () => true
+      });
+      for (const extension of ["data:text/javascript;,(function(Scratch)%20%7B%20%2F%2F%20Name%3A%20Canvas%20Effects%0A%2F%2F%20ID%3A%20theshovelcanvaseffects%0A%2F%2F%20Description%3A%20Apply%20visual%20effects%20to%20the%20entire%20stage.%0A%2F%2F%20By%3A%20TheShovel%0A%2F%2F%20By%3A%20SharkPool%20%3Chttps%3A%2F%2Fscratch.mit.edu%2Fusers%2FDemonX5%2F%3E%0A%2F%2F%20License%3A%20MIT%0A%0A%2F*%20generated%20l10n%20code%20*%2FScratch.translate.setup(%7B%22de%22%3A%7B%22_Canvas%20Effects%22%3A%22B%C3%BChneneffekte%22%7D%2C%22es%22%3A%7B%22_default%22%3A%22por%20defecto%22%7D%2C%22fi%22%3A%7B%22_Canvas%20Effects%22%3A%22Canvas-tehosteet%22%2C%22_background%22%3A%22tausta%22%2C%22_blur%22%3A%22sumennus%22%2C%22_border%20color%22%3A%22reunuksen%20v%C3%A4ri%22%2C%22_border%20radius%22%3A%22reunuksen%20s%C3%A4de%22%2C%22_border%20style%22%3A%22reunuksen%20tyyli%22%2C%22_border%20width%22%3A%22reunuksen%20leveys%22%2C%22_brightness%22%3A%22kirkkaus%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22lis%C3%A4%C3%A4%20canvas-tehostetta%20%5BEFFECT%5D%20arvolla%20%5BNUMBER%5D%22%2C%22_clear%20canvas%20effects%22%3A%22poista%20canvas-tehosteet%22%2C%22_color%20shift%22%3A%22v%C3%A4rinvaihto%22%2C%22_contrast%22%3A%22kontrasti%22%2C%22_dashed%22%3A%22viivoja%22%2C%22_default%22%3A%22oletus%22%2C%22_dotted%22%3A%22pisteit%C3%A4%22%2C%22_double%22%3A%22kaksoisviivaa%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22canvas-tehoste%20%5BEFFECT%5D%22%2C%22_groove%22%3A%22ulkoista%20sis%C3%A4kk%C3%A4ist%C3%A4%20viivaa%22%2C%22_inset%22%3A%22yl%C3%A4-vasenta%20viivaa%22%2C%22_invert%22%3A%22k%C3%A4%C3%A4nteiset%20v%C3%A4rit%22%2C%22_none%22%3A%22ilman%20kuviota%22%2C%22_offset%20X%22%3A%22x-siirto%22%2C%22_offset%20Y%22%3A%22y-siirto%22%2C%22_outset%22%3A%22ala-oikeaa%20viivaa%22%2C%22_pixelated%22%3A%22piksel%C3%B6inti%22%2C%22_resize%20rendering%20mode%22%3A%22render%C3%B6intitila%22%2C%22_ridge%22%3A%22sis%C3%A4ist%C3%A4%20sis%C3%A4kk%C3%A4ist%C3%A4%20viivaa%22%2C%22_rotation%22%3A%22kierto%22%2C%22_saturation%22%3A%22v%C3%A4rikyll%C3%A4isyys%22%2C%22_scale%22%3A%22skaalaus%22%2C%22_scale%20X%22%3A%22x-skaalaus%22%2C%22_scale%20Y%22%3A%22y-skaalaus%22%2C%22_sepia%22%3A%22seepia%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22aseta%20canvas-tehoste%20%5BEFFECT%5D%20arvoon%20%5BNUMBER%5D%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22aseta%20canvas-elementin%20reunukseksi%20%5BWIDTH%5D%20pikseli%C3%A4%20%5BSTYLE%5D%20v%C3%A4rill%C3%A4%20%5BCOLOR1%5D%20ja%20taustalla%20%5BCOLOR2%5D%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22aseta%20canvas-elementin%20kooksi%20leveys%3A%20%5BX%5D%20korkeus%3A%20%5BY%5D%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22aseta%20canvas-elementin%20render%C3%B6intitilaksi%20%5BEFFECT%5D%22%2C%22_skew%20X%22%3A%22x-vinous%22%2C%22_skew%20Y%22%3A%22y-vinous%22%2C%22_solid%22%3A%22tasaista%20viivaa%22%2C%22_transparency%22%3A%22l%C3%A4pin%C3%A4kyvyys%22%7D%2C%22it%22%3A%7B%22_Canvas%20Effects%22%3A%22Effetti%20Stage%22%2C%22_background%22%3A%22sfondo%20bordo%22%2C%22_blur%22%3A%22sfocatura%22%2C%22_border%20color%22%3A%22colore%20bordo%22%2C%22_border%20radius%22%3A%22raggio%20angoli%20bordo%22%2C%22_border%20style%22%3A%22stile%20bordo%22%2C%22_border%20width%22%3A%22larghezza%20angoli%20bordo%22%2C%22_brightness%22%3A%22luminosit%C3%A0%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22cambia%20effetto%20Stage%20%5BEFFECT%5D%20di%20%5BNUMBER%5D%22%2C%22_clear%20canvas%20effects%22%3A%22rimuovi%20tutti%20gli%20effetti%20dello%20Stage%22%2C%22_color%20shift%22%3A%22cangiante%22%2C%22_contrast%22%3A%22contrasto%22%2C%22_dashed%22%3A%22trattini%22%2C%22_default%22%3A%22predefinito%22%2C%22_dotted%22%3A%22punto%22%2C%22_double%22%3A%22doppia%20linea%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22effetto%20Stage%20%5BEFFECT%5D%22%2C%22_groove%22%3A%22rilievo%20verso%20destra%22%2C%22_inset%22%3A%22all'interno%22%2C%22_invert%22%3A%22colori%20invertiti%22%2C%22_none%22%3A%22nessuno%22%2C%22_offset%20X%22%3A%22spostamento%20X%22%2C%22_offset%20Y%22%3A%22spostamento%20Y%22%2C%22_outset%22%3A%22all'esterno%22%2C%22_pixelated%22%3A%22pixel%22%2C%22_resize%20rendering%20mode%22%3A%22modalit%C3%A0%20di%20disegno%20dello%20Stage%22%2C%22_ridge%22%3A%22rilievo%20verso%20sinistra%22%2C%22_rotation%22%3A%22rotazione%22%2C%22_saturation%22%3A%22saturazione%22%2C%22_scale%22%3A%22scala%22%2C%22_scale%20X%22%3A%22scala%20X%22%2C%22_scale%20Y%22%3A%22scala%20Y%22%2C%22_sepia%22%3A%22seppia%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22porta%20effetto%20Stage%20%5BEFFECT%5D%20a%20%5BNUMBER%5D%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22usa%20bordo%20Stage%20di%20%5BWIDTH%5D%20pixel%20%5BSTYLE%5D%20di%20colore%20%5BCOLOR1%5D%20con%20sfondo%20%5BCOLOR2%5D%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22porta%20risoluzione%20Stage%20a%20larghezza%3A%20%5BX%5D%20altezza%3A%20%5BY%5D%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22usa%20modalit%C3%A0%20di%20disegno%20dello%20Stage%20%5BEFFECT%5D%22%2C%22_skew%20X%22%3A%22schiacciamento%20X%22%2C%22_skew%20Y%22%3A%22schiacciamento%20Y%22%2C%22_solid%22%3A%22solido%22%2C%22_transparency%22%3A%22fantasma%22%7D%2C%22ja%22%3A%7B%22_Canvas%20Effects%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E5%8A%B9%E6%9E%9C%22%2C%22_background%22%3A%22%E8%83%8C%E6%99%AF%22%2C%22_blur%22%3A%22%E3%81%BC%E3%81%8B%E3%81%97%22%2C%22_border%20color%22%3A%22%E7%B8%81%E3%81%AE%E8%89%B2%22%2C%22_border%20radius%22%3A%22%E7%B8%81%E3%81%AE%E5%8D%8A%E5%BE%84%22%2C%22_border%20style%22%3A%22%E7%B8%81%E3%81%AE%E3%82%B9%E3%82%BF%E3%82%A4%E3%83%AB%22%2C%22_border%20width%22%3A%22%E7%B8%81%E3%81%AE%E5%B9%85%22%2C%22_brightness%22%3A%22%E6%98%8E%E3%82%8B%E3%81%95%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%5BEFFECT%5D%E3%82%92%5BNUMBER%5D%E3%81%9A%E3%81%A4%E5%A4%89%E3%81%88%E3%82%8B%22%2C%22_clear%20canvas%20effects%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E5%8A%B9%E6%9E%9C%E3%82%92%E6%B6%88%E3%81%99%22%2C%22_color%20shift%22%3A%22%E8%89%B2%22%2C%22_contrast%22%3A%22%E3%82%B3%E3%83%B3%E3%83%88%E3%83%A9%E3%82%B9%E3%83%88%22%2C%22_dashed%22%3A%22%E7%A0%B4%E7%B7%9A%22%2C%22_default%22%3A%22%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%88%22%2C%22_dotted%22%3A%22%E3%83%89%E3%83%83%E3%83%88%22%2C%22_double%22%3A%22%E4%BA%8C%E9%87%8D%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%5BEFFECT%5D%22%2C%22_groove%22%3A%22%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%96%22%2C%22_inset%22%3A%22%E5%9F%8B%E3%82%81%E8%BE%BC%E3%81%BF%22%2C%22_invert%22%3A%22%E8%89%B2%E3%81%AE%E5%8F%8D%E8%BB%A2%22%2C%22_none%22%3A%22%E7%84%A1%E3%81%97%22%2C%22_offset%20X%22%3A%22X%E6%96%B9%E5%90%91%E3%81%AE%E3%82%AA%E3%83%95%E3%82%BB%E3%83%83%E3%83%88%22%2C%22_offset%20Y%22%3A%22Y%E6%96%B9%E5%90%91%E3%81%AE%E3%82%AA%E3%83%95%E3%82%BB%E3%83%83%E3%83%88%22%2C%22_outset%22%3A%22%E5%87%BA%E3%81%A3%E5%BC%B5%E3%82%8A%22%2C%22_pixelated%22%3A%22%E3%83%94%E3%82%AF%E3%82%BB%E3%83%AB%E5%8C%96%22%2C%22_resize%20rendering%20mode%22%3A%22%E6%8F%8F%E7%94%BB%E3%83%A2%E3%83%BC%E3%83%89%22%2C%22_ridge%22%3A%22%E3%83%AA%E3%83%83%E3%82%B8%22%2C%22_rotation%22%3A%22%E5%9B%9E%E8%BB%A2%22%2C%22_saturation%22%3A%22%E5%BD%A9%E5%BA%A6%22%2C%22_scale%22%3A%22%E3%82%B9%E3%82%B1%E3%83%BC%E3%83%AB%22%2C%22_scale%20X%22%3A%22X%E6%96%B9%E5%90%91%E3%81%AE%E3%82%B9%E3%82%B1%E3%83%BC%E3%83%AB%22%2C%22_scale%20Y%22%3A%22Y%E6%96%B9%E5%90%91%E3%81%AE%E3%82%B9%E3%82%B1%E3%83%BC%E3%83%AB%22%2C%22_sepia%22%3A%22%E3%82%BB%E3%83%94%E3%82%A2%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%5BEFFECT%5D%E3%82%92%5BNUMBER%5D%E3%81%AB%E3%81%99%E3%82%8B%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%E7%B8%81%E3%82%92%5BWIDTH%5D%E3%83%94%E3%82%AF%E3%82%BB%E3%83%AB%E3%81%9A%E3%81%A4%5BSTYLE%5D%E3%81%A7%5BCOLOR1%5D%E8%89%B2%E3%80%81%E8%83%8C%E6%99%AF%E3%82%92%5BCOLOR2%5D%E8%89%B2%E3%81%AB%E3%81%99%E3%82%8B%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%E6%8F%8F%E7%94%BB%E3%82%B5%E3%82%A4%E3%82%BA%E3%81%AE%E5%B9%85%E3%82%92%5BX%5D%E3%80%81%E9%AB%98%E3%81%95%E3%82%92%5BY%5D%E3%81%AB%E3%81%99%E3%82%8B%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E3%81%AE%E6%8F%8F%E7%94%BB%E3%83%A2%E3%83%BC%E3%83%89%E3%82%92%5BEFFECT%5D%E3%81%AB%E3%81%99%E3%82%8B%22%2C%22_skew%20X%22%3A%22X%E6%96%B9%E5%90%91%E3%81%AE%E5%82%BE%E6%96%9C%E5%A4%89%E5%BD%A2%22%2C%22_skew%20Y%22%3A%22Y%E6%96%B9%E5%90%91%E3%81%AE%E5%82%BE%E6%96%9C%E5%A4%89%E5%BD%A2%22%2C%22_solid%22%3A%22%E5%9B%BA%E3%81%BE%E3%82%8A%22%2C%22_transparency%22%3A%22%E9%80%8F%E6%98%8E%E5%BA%A6%22%7D%2C%22ko%22%3A%7B%22_Canvas%20Effects%22%3A%22Canvas%20%ED%9A%A8%EA%B3%BC%22%2C%22_background%22%3A%22%EB%B0%B0%EA%B2%BD%EC%83%89%22%2C%22_blur%22%3A%22%ED%9D%90%EB%A6%BC%22%2C%22_border%20color%22%3A%22%EC%99%B8%EA%B3%BD%EC%84%A0%20%EC%83%89%EC%83%81%22%2C%22_border%20radius%22%3A%22%EB%AA%A8%EC%84%9C%EB%A6%AC%20%EB%91%A5%EA%B8%80%EA%B8%B0%22%2C%22_border%20style%22%3A%22%EC%99%B8%EA%B3%BD%EC%84%A0%20%EC%8A%A4%ED%83%80%EC%9D%BC%22%2C%22_border%20width%22%3A%22%EC%99%B8%EA%B3%BD%EC%84%A0%20%EB%91%90%EA%BB%98%22%2C%22_brightness%22%3A%22%EB%B0%9D%EA%B8%B0%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%5BEFFECT%5D%ED%9A%A8%EA%B3%BC%EB%A5%BC%20%5BNUMBER%5D%EB%A7%8C%ED%81%BC%20%EB%B0%94%EA%BE%B8%EA%B8%B0%22%2C%22_clear%20canvas%20effects%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%ED%9A%A8%EA%B3%BC%20%EC%B4%88%EA%B8%B0%ED%99%94%ED%95%98%EA%B8%B0%22%2C%22_color%20shift%22%3A%22%EC%83%89%EA%B9%94%22%2C%22_contrast%22%3A%22%EB%8C%80%EB%B9%84%22%2C%22_dashed%22%3A%22%ED%8C%8C%EC%84%A0%22%2C%22_default%22%3A%22%EA%B8%B0%EB%B3%B8%22%2C%22_dotted%22%3A%22%EC%A0%90%EC%84%A0%22%2C%22_double%22%3A%22%EB%B3%B5%EC%84%A0%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%5BEFFECT%5D%ED%9A%A8%EA%B3%BC%20%EA%B0%92%20%22%2C%22_groove%22%3A%22%EC%98%A4%EB%AA%A9%20%ED%8B%80%22%2C%22_inset%22%3A%22%EC%98%A4%EB%AA%A9%20%EC%9A%94%EC%86%8C%22%2C%22_invert%22%3A%22%EB%B0%98%EC%A0%84%22%2C%22_none%22%3A%22%EC%97%86%EC%9D%8C%22%2C%22_offset%20X%22%3A%22%EC%9C%84%EC%B9%98%20x%22%2C%22_offset%20Y%22%3A%22%EC%9C%84%EC%B9%98%20y%22%2C%22_outset%22%3A%22%EB%B3%BC%EB%A1%9D%20%EC%9A%94%EC%86%8C%22%2C%22_pixelated%22%3A%22%ED%94%BD%EC%85%80%ED%99%94%22%2C%22_resize%20rendering%20mode%22%3A%22%EB%A0%8C%EB%8D%94%EB%A7%81%20%EB%AA%A8%EB%93%9C%22%2C%22_ridge%22%3A%22%EB%B3%BC%EB%A1%9D%20%ED%8B%80%22%2C%22_rotation%22%3A%22%ED%9A%8C%EC%A0%84%22%2C%22_saturation%22%3A%22%EC%B1%84%EB%8F%84%22%2C%22_scale%22%3A%22%ED%81%AC%EA%B8%B0%22%2C%22_scale%20X%22%3A%22%EB%84%93%EC%9D%B4%22%2C%22_scale%20Y%22%3A%22%EB%86%92%EC%9D%B4%22%2C%22_sepia%22%3A%22%EC%84%B8%ED%94%BC%EC%95%84%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%5BEFFECT%5D%ED%9A%A8%EA%B3%BC%EB%A5%BC%20%5BNUMBER%5D(%EC%9C%BC)%EB%A1%9C%20%EC%A0%95%ED%95%98%EA%B8%B0%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%EC%99%B8%EA%B3%BD%EC%84%A0%EC%9D%84%20%5BWIDTH%5D%ED%94%BD%EC%85%80%EB%A7%88%EB%8B%A4%20%5BSTYLE%5D%EC%8A%A4%ED%83%80%EC%9D%BC%EB%A1%9C%20%5BCOLOR1%5D%20%5BCOLOR2%5D%20%EC%83%89%EC%9C%BC%EB%A1%9C%20%EC%A0%95%ED%95%98%EA%B8%B0%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%EB%A0%8C%EB%8D%94%EB%A7%81%20%ED%81%AC%EA%B8%B0%EB%A5%BC%20%EB%84%93%EC%9D%B4%3A%5BX%5D%20%EB%86%92%EC%9D%B4%3A%5BY%5D%20(%EC%9C%BC)%EB%A1%9C%20%EC%A0%95%ED%95%98%EA%B8%B0%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22%EC%BA%94%EB%B2%84%EC%8A%A4%20%EB%A0%8C%EB%8D%94%EB%A7%81%20%EB%AA%A8%EB%93%9C%EB%A5%BC%20%5BEFFECT%5D(%EC%9C%BC)%EB%A1%9C%20%EC%A0%95%ED%95%98%EA%B8%B0%22%2C%22_skew%20X%22%3A%22%EA%B8%B0%EC%9A%B8%EA%B8%B0%20x%22%2C%22_skew%20Y%22%3A%22%EA%B8%B0%EC%9A%B8%EA%B8%B0%20y%22%2C%22_solid%22%3A%22%EC%8B%A4%EC%84%A0%22%2C%22_transparency%22%3A%22%ED%88%AC%EB%AA%85%22%7D%2C%22nb%22%3A%7B%22_Canvas%20Effects%22%3A%22Canvas%20effekter%22%2C%22_brightness%22%3A%22lysstyrke%22%2C%22_scale%22%3A%22skala%22%7D%2C%22nl%22%3A%7B%22_Canvas%20Effects%22%3A%22Canvas-effecten%22%2C%22_background%22%3A%22randachtergrond%22%2C%22_blur%22%3A%22vervaging%22%2C%22_border%20color%22%3A%22randkleur%22%2C%22_border%20radius%22%3A%22randstraal%22%2C%22_border%20style%22%3A%22randstijl%22%2C%22_border%20width%22%3A%22randbreedte%22%2C%22_brightness%22%3A%22helderheid%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22verander%20canvas-effect%20%5BEFFECT%5D%20met%20%5BNUMBER%5D%22%2C%22_color%20shift%22%3A%22kleurverschuiving%22%2C%22_dashed%22%3A%22onderbroken%22%2C%22_default%22%3A%22standaard%22%2C%22_dotted%22%3A%22gestippeld%22%2C%22_double%22%3A%22dubbel%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22canvas-effect%20%5BEFFECT%5D%22%2C%22_groove%22%3A%22groef%22%2C%22_inset%22%3A%22ingesprongen%22%2C%22_invert%22%3A%22omgekeerd%22%2C%22_none%22%3A%22geen%22%2C%22_offset%20X%22%3A%22x-verschuiving%22%2C%22_offset%20Y%22%3A%22y-verschuiving%22%2C%22_outset%22%3A%22uitstekend%22%2C%22_pixelated%22%3A%22gepixeleerd%22%2C%22_resize%20rendering%20mode%22%3A%22formaatverandering-rendermodus%22%2C%22_ridge%22%3A%22richel%22%2C%22_rotation%22%3A%22rotatie%22%2C%22_saturation%22%3A%22verzadiging%22%2C%22_scale%22%3A%22schaal%22%2C%22_scale%20X%22%3A%22x-schaal%22%2C%22_scale%20Y%22%3A%22y-schaal%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22zet%20canvas-effect%20%5BEFFECT%5D%20op%20%5BNUMBER%5D%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22zet%20canvas-rand%20op%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20met%20kleur%20%5BCOLOR1%5D%20en%20achtergrond%20%5BCOLOR2%5D%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22zet%20canvas-rendergrootte%20op%3A%20breedte%3A%20%5BX%5D%20hoogte%3A%20%5BY%5D%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22zet%20formaatverandering-rendermodus%20van%20canvas%20op%20%5BEFFECT%5D%22%2C%22_skew%20X%22%3A%22x-scheefheid%22%2C%22_skew%20Y%22%3A%22y-scheefheid%22%2C%22_solid%22%3A%22ononderbroken%22%2C%22_transparency%22%3A%22doorzichtigheid%22%7D%2C%22pl%22%3A%7B%22_brightness%22%3A%22jasno%C5%9B%C4%87%22%2C%22_saturation%22%3A%22nasycenie%22%2C%22_scale%22%3A%22skala%22%2C%22_transparency%22%3A%22przezroczysto%C5%9B%C4%87%22%7D%2C%22ru%22%3A%7B%22_Canvas%20Effects%22%3A%22Canvas%20%D0%AD%D1%84%D1%84%D0%B5%D0%BA%D1%82%D1%8B%22%2C%22_background%22%3A%22%D0%B7%D0%B0%D0%B4%D0%BD%D0%B8%D0%B9%20%D1%84%D0%BE%D0%BD%22%2C%22_blur%22%3A%22%D0%B1%D0%BB%D1%8E%D1%80%22%2C%22_border%20color%22%3A%22%D1%86%D0%B2%D0%B5%D1%82%20%D0%B1%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0%22%2C%22_border%20radius%22%3A%22%D1%80%D0%B0%D0%B4%D0%B8%D1%83%D1%81%20%D0%B1%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0%22%2C%22_border%20style%22%3A%22%D1%81%D1%82%D0%B8%D0%BB%D1%8C%20%D0%B1%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0%22%2C%22_border%20width%22%3A%22%D1%88%D0%B8%D1%80%D0%B8%D0%BD%D0%B0%20%D0%B1%D0%B0%D1%80%D1%8C%D0%B5%D1%80%D0%B0%22%2C%22_brightness%22%3A%22%D1%8F%D1%80%D0%BA%D0%BE%D1%81%D1%82%D1%8C%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B8%D1%82%D1%8C%20%5BEFFECT%5D%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%20%D0%B2%20%5BNUMBER%5D%22%2C%22_clear%20canvas%20effects%22%3A%22%D1%83%D0%B1%D1%80%D0%B0%D1%82%D1%8C%20%D1%8D%D1%84%D1%84%D0%B5%D0%BA%D1%82%D1%8B%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%D0%B0%22%2C%22_color%20shift%22%3A%22%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20%D1%86%D0%B2%D0%B5%D1%82%D0%B0%22%2C%22_contrast%22%3A%22%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D1%81%D1%82%22%2C%22_dashed%22%3A%22%D0%B4%D1%8D%D1%88%D0%BD%D1%83%D1%82%D1%8B%D0%B9%22%2C%22_default%22%3A%22%D0%BF%D0%BE%20%D1%83%D0%BC%D0%BE%D0%BB%D1%87%D0%B0%D0%BD%D0%B8%D1%8E%22%2C%22_dotted%22%3A%22%D0%BF%D1%83%D0%BD%D0%BA%D1%82%D0%B8%D1%80%D0%BD%D1%8B%D0%B9%22%2C%22_double%22%3A%22%D0%B4%D0%B2%D0%BE%D0%B9%D0%BD%D0%BE%D0%B9%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22%D0%BF%D0%BE%D0%BB%D1%83%D1%87%D0%B8%D1%82%D1%8C%20%5BEFFECT%5D%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%22%2C%22_groove%22%3A%22%D0%B3%D1%80%D0%B0%D1%84%D1%84%D0%B8%D1%82%D0%B8%22%2C%22_inset%22%3A%22%D0%B2%D1%80%D0%B5%D0%B7%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9%22%2C%22_invert%22%3A%22%D0%B8%D0%BD%D0%B2%D0%B5%D1%80%D1%82%22%2C%22_none%22%3A%22%D0%BD%D0%B8%D0%BA%D0%B0%D0%BA%D0%BE%D0%B9%22%2C%22_offset%20X%22%3A%22%D1%81%D0%BC%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D0%B5%20X%22%2C%22_offset%20Y%22%3A%22%D1%81%D0%BC%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D0%B5%20Y%22%2C%22_outset%22%3A%22%D1%80%D0%B0%D0%B7%D1%80%D0%B5%D0%B7%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9%22%2C%22_pixelated%22%3A%22%D0%BF%D0%B8%D0%BA%D1%81%D0%B5%D0%BB%D0%B8%D0%B7%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D0%B9%22%2C%22_resize%20rendering%20mode%22%3A%22%D1%80%D0%B5%D0%B6%D0%B8%D0%BC%20%D1%80%D0%B5%D0%BD%D0%B4%D0%B5%D1%80%D0%B8%D0%BD%D0%B3%D0%B0%20%D1%81%20%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%D0%BC%20%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%D0%B0%22%2C%22_ridge%22%3A%22%D1%80%D0%B5%D0%B1%D1%80%D0%BE%22%2C%22_rotation%22%3A%22%D0%BF%D0%BE%D0%B2%D0%BE%D1%80%D0%BE%D1%82%22%2C%22_saturation%22%3A%22%D0%BD%D0%B0%D1%81%D1%8B%D1%89%D0%B5%D0%BD%D0%BD%D1%8B%D0%B9%22%2C%22_scale%22%3A%22%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%22%2C%22_scale%20X%22%3A%22%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%20X%22%2C%22_scale%20Y%22%3A%22%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%20Y%22%2C%22_sepia%22%3A%22%D1%81%D0%B5%D0%BF%D0%B8%D1%8F%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22%D0%B7%D0%B0%D0%B4%D0%B0%D1%82%D1%8C%20%5BEFFECT%5D%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%20%D0%B2%20%5BNUMBER%5D%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22%D0%B7%D0%B0%D0%B4%D0%B0%D1%82%D1%8C%20%D0%B1%D0%B0%D1%80%D1%8C%D0%B5%D1%80%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%D0%B0%20%D0%BD%D0%B0%20%5BWIDTH%5D%20%D0%BF%D0%B8%D0%BA%D1%81%D0%B5%D0%BB%D0%B5%D0%B9%20%5BSTYLE%5D%20%D1%81%20%D1%86%D0%B2%D0%B5%D1%82%D0%BE%D0%BC%20%5BCOLOR1%5D%20%D0%B8%20%D0%B7%D0%B0%D0%B4%D0%BD%D0%B8%D0%BC%20%D1%84%D0%BE%D0%BD%D0%BE%D0%BC%20%5BCOLOR2%5D%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22%D0%B7%D0%B0%D0%B4%D0%B0%D1%82%D1%8C%20%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%20%D1%80%D0%B5%D0%BD%D0%B4%D0%B5%D1%80%D0%B0%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%D0%B0%20%D0%BD%D0%B0%20%D1%88%D0%B8%D1%80%D0%B8%D0%BD%D1%83%3A%20%5BX%5D%20%D0%B2%D1%8B%D1%81%D0%BE%D1%82%D1%83%3A%20%5BY%5D%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22%D0%B7%D0%B0%D0%B4%D0%B0%D1%82%D1%8C%20%D1%80%D0%B5%D0%B6%D0%B8%D0%BC%20%D1%80%D0%B5%D0%BD%D0%B4%D0%B5%D1%80%D0%B8%D0%BD%D0%B3%D0%B0%20%D1%81%20%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%D0%BC%20%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80%D0%B0%20%D1%85%D0%BE%D0%BB%D1%81%D1%82%D0%B0%20%5BEFFECT%5D%22%2C%22_skew%20X%22%3A%22%D1%81%D0%BA%D0%BE%D1%81%20X%22%2C%22_skew%20Y%22%3A%22%D1%81%D0%BA%D0%BE%D1%81%20Y%22%2C%22_solid%22%3A%22%D1%82%D0%B2%D1%91%D1%80%D0%B4%D1%8B%D0%B9%22%2C%22_transparency%22%3A%22%D0%BF%D1%80%D0%BE%D0%B7%D1%80%D0%B0%D1%87%D0%BD%D0%BE%D1%81%D1%82%D1%8C%22%7D%2C%22tr%22%3A%7B%22_Canvas%20Effects%22%3A%22Tuval%20Efektleri%22%7D%2C%22uk%22%3A%7B%22_Canvas%20Effects%22%3A%22%D0%92%D1%96%D0%B7%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%96%20%D0%95%D1%84%D0%B5%D0%BA%D1%82%D0%B8%22%2C%22_brightness%22%3A%22%D1%8F%D1%81%D0%BA%D1%80%D0%B0%D0%B2%D1%96%D1%81%D1%82%D1%8C%22%7D%2C%22zh-cn%22%3A%7B%22_Canvas%20Effects%22%3A%22%E7%94%BB%E5%B8%83%E6%95%88%E6%9E%9C%22%2C%22_background%22%3A%22%E8%83%8C%E6%99%AF%22%2C%22_blur%22%3A%22%E6%A8%A1%E7%B3%8A%22%2C%22_border%20color%22%3A%22%E8%BE%B9%E7%BC%98%E9%A2%9C%E8%89%B2%22%2C%22_border%20radius%22%3A%22%E8%BE%B9%E7%BC%98%E5%8D%8A%E5%BE%84%22%2C%22_border%20style%22%3A%22%E8%BE%B9%E7%BC%98%E6%A0%B7%E5%BC%8F%22%2C%22_border%20width%22%3A%22%E8%BE%B9%E7%BC%98%E5%AE%BD%22%2C%22_brightness%22%3A%22%E4%BA%AE%E5%BA%A6%22%2C%22_change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22%3A%22%E5%B0%86%E7%94%BB%E5%B8%83%5BEFFECT%5D%E5%A2%9E%E5%8A%A0%5BNUMBER%5D%22%2C%22_clear%20canvas%20effects%22%3A%22%E6%B8%85%E9%99%A4%E7%94%BB%E5%B8%83%E6%95%88%E6%9E%9C%22%2C%22_color%20shift%22%3A%22%E9%A2%9C%E8%89%B2%E5%81%8F%E7%A7%BB%22%2C%22_contrast%22%3A%22%E5%AF%B9%E6%AF%94%E5%BA%A6%22%2C%22_dashed%22%3A%22%E8%99%9A%E7%BA%BF%22%2C%22_default%22%3A%22%E9%BB%98%E8%AE%A4%E7%B1%BB%E5%9E%8B%22%2C%22_dotted%22%3A%22%E7%82%B9%E7%8A%B6%22%2C%22_double%22%3A%22%E5%8F%8C%E7%BA%BF%22%2C%22_get%20canvas%20%5BEFFECT%5D%22%3A%22%E8%8E%B7%E5%8F%96%E7%94%BB%E5%B8%83%5BEFFECT%5D%22%2C%22_groove%22%3A%22%E5%87%B9%E6%A7%BD%22%2C%22_inset%22%3A%22%E5%B5%8C%E5%85%A5%22%2C%22_invert%22%3A%22%E5%8F%8D%E8%89%B2%22%2C%22_none%22%3A%22%E6%97%A0%22%2C%22_offset%20X%22%3A%22X%20%E5%81%8F%E7%A7%BB%22%2C%22_offset%20Y%22%3A%22Y%20%E5%81%8F%E7%A7%BB%22%2C%22_outset%22%3A%22%E5%A4%96%E5%87%B8%22%2C%22_pixelated%22%3A%22%E5%83%8F%E7%B4%A0%E5%8C%96%22%2C%22_resize%20rendering%20mode%22%3A%22%E9%87%8D%E8%AE%BE%E5%B0%BA%E5%AF%B8%E6%97%B6%E7%9A%84%E6%B8%B2%E6%9F%93%E6%A8%A1%E5%BC%8F%22%2C%22_ridge%22%3A%22%E5%9E%84%E7%8A%B6%22%2C%22_rotation%22%3A%22%E6%97%8B%E8%BD%AC%22%2C%22_saturation%22%3A%22%E9%A5%B1%E5%92%8C%E5%BA%A6%22%2C%22_scale%22%3A%22%E8%A7%84%E6%A8%A1%22%2C%22_scale%20X%22%3A%22X%20%E7%BC%A9%E6%94%BE%22%2C%22_scale%20Y%22%3A%22Y%20%E7%BC%A9%E6%94%BE%22%2C%22_sepia%22%3A%22%E6%B7%B1%E8%A4%90%E8%89%B2%22%2C%22_set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22%3A%22%E5%B0%86%E7%94%BB%E5%B8%83%5BEFFECT%5D%E8%AE%BE%E4%B8%BA%5BNUMBER%5D%22%2C%22_set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%3A%22%E5%B0%86%E7%94%BB%E5%B8%83%E8%BE%B9%E6%A1%86%E8%AE%BE%E4%B8%BA%5BWIDTH%5D%E5%83%8F%E7%B4%A0%5BSTYLE%5D%E6%A0%B7%E5%BC%8F%EF%BC%8C%E9%A2%9C%E8%89%B2%E4%B8%BA%5BCOLOR1%5D%E8%83%8C%E6%99%AF%E9%A2%9C%E8%89%B2%E4%B8%BA%5BCOLOR2%5D%22%2C%22_set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%3A%22%E5%B0%86%E7%94%BB%E5%B8%83%E6%B8%B2%E6%9F%93%E5%B0%BA%E5%AF%B8%E8%AE%BE%E4%B8%BA%E5%AE%BD%EF%BC%9A%5BX%5D%E9%AB%98%EF%BC%9A%5BY%5D%22%2C%22_set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%3A%22%E5%B0%86%E7%94%BB%E5%B8%83%E9%87%8D%E8%AE%BE%E5%B0%BA%E5%AF%B8%E6%B8%B2%E6%9F%93%E6%A8%A1%E5%BC%8F%E8%AE%BE%E4%B8%BA%5BEFFECT%5D%22%2C%22_skew%20X%22%3A%22X%20%E5%80%BE%E6%96%9C%22%2C%22_skew%20Y%22%3A%22Y%20%E5%80%BE%E6%96%9C%22%2C%22_solid%22%3A%22%E5%AE%9E%E7%BA%BF%22%2C%22_transparency%22%3A%22%E9%80%8F%E6%98%8E%E5%BA%A6%22%7D%7D)%3B%2F*%20end%20generated%20l10n%20code%20*%2F(function%20(Scratch)%20%7B%0A%20%20%22use%20strict%22%3B%0A%20%20if%20(!Scratch.extensions.unsandboxed)%20%7B%0A%20%20%20%20throw%20new%20Error(%22This%20extension%20must%20run%20unsandboxed%22)%3B%0A%20%20%7D%0A%0A%20%20const%20canvas%20%3D%20Scratch.renderer.canvas%3B%0A%0A%20%20const%20updateStyle%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%2F%2F%20Gotta%20keep%20the%20translation%20to%20%25%20because%20of%20the%20stage%20size%2C%20window%20size%20and%20so%20on%0A%20%20%20%20const%20transform%20%3D%20%60rotate(%24%7Brotation%7Ddeg)%20scale(%24%7BscaleX%7D%25%2C%20%24%7BscaleY%7D%25)%20skew(%24%7BskewX%7Ddeg%2C%20%24%7BskewY%7Ddeg)%20translate(%24%7BoffsetX%7D%25%2C%20%24%7B%0A%20%20%20%20%20%200%20-%20offsetY%0A%20%20%20%20%7D%25)%60%3B%0A%20%20%20%20if%20(canvas.style.transform%20!%3D%3D%20transform)%20%7B%0A%20%20%20%20%20%20canvas.style.transform%20%3D%20transform%3B%0A%20%20%20%20%7D%0A%20%20%20%20const%20filter%20%3D%20%60blur(%24%7Bblur%7Dpx)%20contrast(%24%7B%0A%20%20%20%20%20%20contrast%20%2F%20100%0A%20%20%20%20%7D)%20saturate(%24%7Bsaturation%7D%25)%20hue-rotate(%24%7Bcolor%7Ddeg)%20brightness(%24%7Bbrightness%7D%25)%20invert(%24%7Binvert%7D%25)%20sepia(%24%7Bsepia%7D%25)%20opacity(%24%7B%0A%20%20%20%20%20%20100%20-%20transparency%0A%20%20%20%20%7D%25)%60%3B%0A%20%20%20%20if%20(canvas.style.filter%20!%3D%3D%20filter)%20%7B%0A%20%20%20%20%20%20canvas.style.filter%20%3D%20filter%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20const%20cssBorderRadius%20%3D%20borderRadius%20%3D%3D%3D%200%20%3F%20%22%22%20%3A%20%60%24%7BborderRadius%7D%25%60%3B%0A%20%20%20%20if%20(canvas.style.borderRadius%20!%3D%3D%20cssBorderRadius)%20%7B%0A%20%20%20%20%20%20canvas.style.borderRadius%20%3D%20cssBorderRadius%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20const%20imageRendering%20%3D%20resizeMode%20%3D%3D%3D%20%22pixelated%22%20%3F%20%22pixelated%22%20%3A%20%22%22%3B%0A%20%20%20%20if%20(canvas.style.imageRendering%20!%3D%3D%20imageRendering)%20%7B%0A%20%20%20%20%20%20canvas.style.imageRendering%20%3D%20imageRendering%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20const%20border%20%3D%20%60%24%7BborderWidth%7Dpx%20%24%7BborderStyle%7D%20%24%7BborderColor%7D%60%3B%0A%20%20%20%20if%20(canvas.style.border%20!%3D%3D%20border)%20%7B%0A%20%20%20%20%20%20canvas.style.border%20%3D%20border%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20if%20(canvas.style.backgroundColor%20!%3D%3D%20backgroundColor)%20%7B%0A%20%20%20%20%20%20canvas.style.backgroundColor%20%3D%20backgroundColor%3B%0A%20%20%20%20%7D%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20scratch-gui%20may%20reset%20canvas%20styles%20when%20resizing%20the%20window%20or%20going%20in%2Fout%20of%20fullscreen%0A%20%20new%20MutationObserver(updateStyle).observe(canvas%2C%20%7B%0A%20%20%20%20attributeFilter%3A%20%5B%22style%22%5D%2C%0A%20%20%20%20attributes%3A%20true%2C%0A%20%20%7D)%3B%0A%0A%20%20let%20borderRadius%20%3D%200%3B%0A%20%20let%20rotation%20%3D%200%3B%0A%20%20let%20offsetY%20%3D%200%3B%0A%20%20let%20offsetX%20%3D%200%3B%0A%20%20let%20skewY%20%3D%200%3B%0A%20%20let%20skewX%20%3D%200%3B%0A%20%20let%20scaleX%20%3D%20100%3B%0A%20%20let%20scaleY%20%3D%20100%3B%0A%20%20%2F%2F%20Thanks%20SharkPool%20for%20telling%20me%20about%20these%0A%20%20let%20transparency%20%3D%200%3B%0A%20%20let%20sepia%20%3D%200%3B%0A%20%20let%20blur%20%3D%200%3B%0A%20%20let%20contrast%20%3D%20100%3B%0A%20%20let%20saturation%20%3D%20100%3B%0A%20%20let%20color%20%3D%200%3B%0A%20%20let%20brightness%20%3D%20100%3B%0A%20%20let%20invert%20%3D%200%3B%0A%20%20let%20resizeMode%20%3D%20%22default%22%3B%0A%20%20let%20borderStyle%20%3D%20%22solid%22%3B%0A%20%20let%20borderWidth%20%3D%200%3B%0A%20%20let%20borderColor%20%3D%20%22%23000000%22%3B%0A%20%20let%20backgroundColor%20%3D%20%22transparent%22%3B%0A%0A%20%20const%20resetStyles%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20borderRadius%20%3D%200%3B%0A%20%20%20%20rotation%20%3D%200%3B%0A%20%20%20%20offsetY%20%3D%200%3B%0A%20%20%20%20offsetX%20%3D%200%3B%0A%20%20%20%20skewY%20%3D%200%3B%0A%20%20%20%20skewX%20%3D%200%3B%0A%20%20%20%20scaleX%20%3D%20100%3B%0A%20%20%20%20scaleY%20%3D%20100%3B%0A%20%20%20%20transparency%20%3D%200%3B%0A%20%20%20%20sepia%20%3D%200%3B%0A%20%20%20%20blur%20%3D%200%3B%0A%20%20%20%20contrast%20%3D%20100%3B%0A%20%20%20%20saturation%20%3D%20100%3B%0A%20%20%20%20color%20%3D%200%3B%0A%20%20%20%20brightness%20%3D%20100%3B%0A%20%20%20%20invert%20%3D%200%3B%0A%20%20%20%20resizeMode%20%3D%20%22default%22%3B%0A%20%20%20%20borderStyle%20%3D%20%22solid%22%3B%0A%20%20%20%20borderWidth%20%3D%200%3B%0A%20%20%20%20borderColor%20%3D%20%22%23000000%22%3B%0A%20%20%20%20backgroundColor%20%3D%20%22transparent%22%3B%0A%20%20%20%20updateStyle()%3B%0A%20%20%7D%3B%0A%0A%20%20Scratch.vm.runtime.on(%22RUNTIME_DISPOSED%22%2C%20resetStyles)%3B%0A%0A%20%20class%20CanvasEffects%20%7B%0A%20%20%20%20getInfo()%20%7B%0A%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20id%3A%20%22theshovelcanvaseffects%22%2C%0A%20%20%20%20%20%20%20%20name%3A%20Scratch.translate(%22Canvas%20Effects%22)%2C%0A%20%20%20%20%20%20%20%20blocks%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22seteffect%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22set%20canvas%20%5BEFFECT%5D%20to%20%5BNUMBER%5D%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20EFFECT%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22EFFECTMENU%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20NUMBER%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22changeEffect%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22change%20canvas%20%5BEFFECT%5D%20by%20%5BNUMBER%5D%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20EFFECT%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22EFFECTMENU%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20NUMBER%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%205%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22geteffect%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.REPORTER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22get%20canvas%20%5BEFFECT%5D%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20EFFECT%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22EFFECTGETMENU%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22cleareffects%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22clear%20canvas%20effects%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%22---%22%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22setBorder%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22set%20canvas%20border%20to%20%5BWIDTH%5D%20pixels%20%5BSTYLE%5D%20with%20color%20%5BCOLOR1%5D%20and%20background%20%5BCOLOR2%5D%22%0A%20%20%20%20%20%20%20%20%20%20%20%20)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20STYLE%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22borderTypes%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20WIDTH%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%205%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20COLOR1%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.COLOR%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22%23ff0000%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20COLOR2%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.COLOR%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20%22%230000ff%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22renderscale%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22set%20canvas%20render%20size%20to%20width%3A%20%5BX%5D%20height%3A%20%5BY%5D%22%0A%20%20%20%20%20%20%20%20%20%20%20%20)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20X%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20100%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20Y%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.NUMBER%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20defaultValue%3A%20100%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20opcode%3A%20%22setrendermode%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20blockType%3A%20Scratch.BlockType.COMMAND%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22set%20canvas%20resize%20rendering%20mode%20%5BEFFECT%5D%22%0A%20%20%20%20%20%20%20%20%20%20%20%20)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20arguments%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20EFFECT%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20type%3A%20Scratch.ArgumentType.STRING%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20menu%3A%20%22RENDERMODE%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20menus%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20EFFECTMENU%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20this._getMenuItems(false)%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20RENDERMODE%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22pixelated%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22pixelated%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22default%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22default%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20EFFECTGETMENU%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20this._getMenuItems(true)%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20borderTypes%3A%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20acceptReporters%3A%20true%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20items%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22dotted%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22dotted%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22dashed%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22dashed%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22solid%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22solid%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22double%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22double%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22groove%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22groove%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22ridge%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22ridge%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22inset%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22inset%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22outset%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22outset%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22none%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22none%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20_getMenuItems(isGetter)%20%7B%0A%20%20%20%20%20%20return%20%5B%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22blur%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22blur%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22contrast%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22contrast%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22saturation%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22saturation%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22color%20shift%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22color%20shift%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22brightness%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22brightness%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22invert%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22invert%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20...(isGetter%0A%20%20%20%20%20%20%20%20%20%20%3F%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22resize%20rendering%20mode%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22resize%20rendering%20mode%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%20%20%3A%20%5B%5D)%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22sepia%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22sepia%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22transparency%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22transparency%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20...(isGetter%0A%20%20%20%20%20%20%20%20%20%20%3F%20%5B%5D%0A%20%20%20%20%20%20%20%20%20%20%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20default%3A%20%22scale%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20description%3A%20%22Scale%20as%20in%20upscale%2Fdownscale%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22scale%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D)%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22scale%20X%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22scale%20X%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22scale%20Y%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22scale%20Y%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22skew%20X%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22skew%20X%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22skew%20Y%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22skew%20Y%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22offset%20X%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22offset%20X%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22offset%20Y%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22offset%20Y%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22rotation%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22rotation%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22border%20radius%22)%2C%0A%20%20%20%20%20%20%20%20%20%20value%3A%20%22border%20radius%22%2C%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20...(isGetter%0A%20%20%20%20%20%20%20%20%20%20%3F%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22border%20width%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22border%20width%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22border%20style%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22border%20style%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22border%20color%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22border%20color%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20text%3A%20Scratch.translate(%22background%22)%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20value%3A%20%22background%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%20%20%3A%20%5B%5D)%2C%0A%20%20%20%20%20%20%5D%3B%0A%20%20%20%20%7D%0A%0A%20%20%20%20geteffect(%7B%20EFFECT%20%7D)%20%7B%0A%20%20%20%20%20%20if%20(EFFECT%20%3D%3D%3D%20%22blur%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20blur%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22contrast%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20contrast%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22saturation%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20saturation%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22color%20shift%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20color%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22brightness%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20brightness%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22invert%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20invert%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22resize%20rendering%20mode%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20resizeMode%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22sepia%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20sepia%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22transparency%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20transparency%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%22)%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20old%20extension%20compatibility%0A%20%20%20%20%20%20%20%20return%20scaleX%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20scaleX%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20scaleY%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22skew%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20skewX%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22skew%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20skewY%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22offset%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20offsetX%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22offset%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20offsetY%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22rotation%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20rotation%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22border%20radius%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20borderRadius%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22border%20width%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20borderWidth%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22border%20style%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20borderStyle%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22border%20color%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20borderColor%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22background%22)%20%7B%0A%20%20%20%20%20%20%20%20return%20backgroundColor%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20return%20%22%22%3B%0A%20%20%20%20%7D%0A%20%20%20%20seteffect(%7B%20EFFECT%2C%20NUMBER%20%7D)%20%7B%0A%20%20%20%20%20%20NUMBER%20%3D%20Scratch.Cast.toNumber(NUMBER)%3B%0A%20%20%20%20%20%20if%20(EFFECT%20%3D%3D%3D%20%22blur%22)%20%7B%0A%20%20%20%20%20%20%20%20blur%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22contrast%22)%20%7B%0A%20%20%20%20%20%20%20%20contrast%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22saturation%22)%20%7B%0A%20%20%20%20%20%20%20%20saturation%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22color%20shift%22)%20%7B%0A%20%20%20%20%20%20%20%20color%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22brightness%22)%20%7B%0A%20%20%20%20%20%20%20%20brightness%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22invert%22)%20%7B%0A%20%20%20%20%20%20%20%20invert%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22sepia%22)%20%7B%0A%20%20%20%20%20%20%20%20sepia%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22transparency%22)%20%7B%0A%20%20%20%20%20%20%20%20transparency%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%22)%20%7B%0A%20%20%20%20%20%20%20%20scaleX%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%20%20scaleY%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20scaleX%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22scale%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20scaleY%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22skew%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20skewX%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22skew%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20skewY%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22offset%20X%22)%20%7B%0A%20%20%20%20%20%20%20%20offsetX%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22offset%20Y%22)%20%7B%0A%20%20%20%20%20%20%20%20offsetY%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22rotation%22)%20%7B%0A%20%20%20%20%20%20%20%20rotation%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%20else%20if%20(EFFECT%20%3D%3D%3D%20%22border%20radius%22)%20%7B%0A%20%20%20%20%20%20%20%20borderRadius%20%3D%20NUMBER%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20updateStyle()%3B%0A%20%20%20%20%7D%0A%20%20%20%20changeEffect(args)%20%7B%0A%20%20%20%20%20%20%2F%2F%20Scale%20needs%20some%20special%20treatment%20to%20change%20x%20%26%20y%20separately%0A%20%20%20%20%20%20if%20(args.EFFECT%20%3D%3D%3D%20%22scale%22)%20%7B%0A%20%20%20%20%20%20%20%20scaleX%20%3D%20scaleX%20%2B%20Scratch.Cast.toNumber(args.NUMBER)%3B%0A%20%20%20%20%20%20%20%20scaleY%20%3D%20scaleY%20%2B%20Scratch.Cast.toNumber(args.NUMBER)%3B%0A%20%20%20%20%20%20%20%20updateStyle()%3B%0A%20%20%20%20%20%20%20%20return%3B%0A%20%20%20%20%20%20%7D%0A%0A%20%20%20%20%20%20%2F%2F%20Everything%20else%20is%20really%20generic%0A%20%20%20%20%20%20const%20currentEffect%20%3D%20Scratch.Cast.toNumber(this.geteffect(args))%3B%0A%20%20%20%20%20%20const%20newValue%20%3D%20Scratch.Cast.toNumber(args.NUMBER)%20%2B%20currentEffect%3B%0A%20%20%20%20%20%20this.seteffect(%7B%0A%20%20%20%20%20%20%20%20EFFECT%3A%20args.EFFECT%2C%0A%20%20%20%20%20%20%20%20NUMBER%3A%20newValue%2C%0A%20%20%20%20%20%20%7D)%3B%0A%20%20%20%20%7D%0A%20%20%20%20cleareffects()%20%7B%0A%20%20%20%20%20%20resetStyles()%3B%0A%20%20%20%20%7D%0A%20%20%20%20setrendermode(%7B%20EFFECT%20%7D)%20%7B%0A%20%20%20%20%20%20resizeMode%20%3D%20EFFECT%3B%0A%20%20%20%20%20%20updateStyle()%3B%0A%20%20%20%20%7D%0A%20%20%20%20renderscale(%7B%20X%2C%20Y%20%7D)%20%7B%0A%20%20%20%20%20%20Scratch.vm.renderer.resize(X%2C%20Y)%3B%0A%20%20%20%20%7D%0A%20%20%20%20setBorder(args)%20%7B%0A%20%20%20%20%20%20borderWidth%20%3D%20Scratch.Cast.toNumber(args.WIDTH)%3B%0A%20%20%20%20%20%20borderStyle%20%3D%20Scratch.Cast.toString(args.STYLE).replace(%2F%5B%5Ea-z%5D%2Fgi%2C%20%22%22)%3B%0A%20%20%20%20%20%20borderColor%20%3D%20Scratch.Cast.toString(args.COLOR1).replace(%0A%20%20%20%20%20%20%20%20%2F%5B%5E%230-9a-z%5D%2Fgi%2C%0A%20%20%20%20%20%20%20%20%22%22%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%20%20backgroundColor%20%3D%20Scratch.Cast.toString(args.COLOR2).replace(%0A%20%20%20%20%20%20%20%20%2F%5B%5E%230-9a-z%5D%2Fgi%2C%0A%20%20%20%20%20%20%20%20%22%22%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%20%20updateStyle()%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%20%20Scratch.extensions.register(new%20CanvasEffects())%3B%0A%7D)(Scratch)%3B%0A%20%7D)(Scratch)%3B"]) {
+        vm.extensionManager.loadExtensionURL(extension);
+      }
+
+    } catch (e) {
+      handleError(e);
+    }
+  </script>
+  
+  
+    <script>
+      const getProjectData = (function() {
+        const storage = scaffolding.storage;
+        storage.onprogress = (total, loaded) => {
+          setProgress(interpolate(0.2, 0.98, loaded / total));
+        };
+        
+        storage.addWebStore(
+          [
+            storage.AssetType.ImageVector,
+            storage.AssetType.ImageBitmap,
+            storage.AssetType.Sound,
+            storage.AssetType.Font
+          ].filter(i => i),
+          (asset) => new URL('./assets/' + asset.assetId + '.' + asset.dataFormat, location).href
+        );
+        return () => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = () => {
+          resolve(xhr.response);
+        };
+        xhr.onerror = () => {
+          if (location.protocol === 'file:') {
+            reject(new Error('Zip environment must be used on a website, not on a local file. To fix this error, use the "Plain HTML" environment instead.'));
+          } else {
+            reject(new Error('Request to load project data failed.'));
+          }
+        };
+        xhr.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(interpolate(0.1, 0.2, e.loaded / e.total));
+          }
+        };
+        xhr.responseType = 'arraybuffer';
+        xhr.open('GET', "./assets/project.json");
+        xhr.send();
+      });
+      })();
+    </script>
+  <script>
+    const run = async () => {
+      const projectData = await getProjectData();
+      await scaffolding.loadProject(projectData);
+      setProgress(1);
+      loadingScreen.hidden = true;
+      if (true) {
+        scaffolding.start();
+      } else {
+        launchScreen.hidden = false;
+        launchScreen.addEventListener('click', () => {
+          launchScreen.hidden = true;
+          scaffolding.start();
+        });
+        launchScreen.focus();
+      }
+    };
+    run().catch(handleError);
+  </script>
+</body>
+</html>
